@@ -1,16 +1,49 @@
 #!/bin/bash
 
-session=${1:-default}
-workdir=$HOME/Workspaces/$session
-wsconfig=$workdir/workspace.yml
+wsdir=$HOME/Workspaces
 
-[ -d $workdir ] || mkdir -p $workdir
+usage() {
+    printf "Usage:\n  %s ls|list|help|<session_name>\n" ${0##*/}
+}
 
-if [ -e $wsconfig ]; then
-    for env in $(yq -r '.environment[]' $wsconfig); do
-        env="${env/\$workdir/$workdir}"
-        args="-e $env $args"
+do_list() {
+    for d in $wsdir/*; do
+        [ -d $d ] && printf "  %s\n" ${d##*/}
     done
-fi
+    return 0
+}
 
-tmux -u new-session -AD -s $session -c $workdir $args
+enter_session() {
+    local session=${1:-default}
+    local workdir=$wsdir/$session
+    local wsconfig=$workdir/workspace.yml
+
+    [ -d $workdir ] || mkdir -p $workdir
+
+    if [ -e $wsconfig ]; then
+        for env in $(yq -r '.environment[]' $wsconfig); do
+            env="${env/\$workdir/$workdir}"
+            args="-e $env $args"
+        done
+    fi
+
+    tmux -u new-session -AD -s $session -c $workdir $args
+}
+
+case $1 in
+    ls|list)
+        do_list
+        ;;
+    help)
+        usage
+        ;;
+    *)
+        if [ -n "$1" ]; then
+            enter_session ${1:-default}
+        else
+            usage
+            exit 1
+        fi
+        ;;
+esac
+
