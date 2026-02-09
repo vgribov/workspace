@@ -1,49 +1,33 @@
 #!/bin/bash
 
-wsdir=$HOME/Workspaces
+real_tmux=/usr/bin/tmux
 
-usage() {
-    printf "Usage:\n  %s ls|list|help|<session_name>\n" ${0##*/}
-}
+tmux_here() {
+    local workdir="$1"
+    local name="${workdir##*/}-$$"
+    local wsconfig="workspace.yml"
 
-do_list() {
-    for d in $wsdir/*; do
-        [ -d $d ] && printf "  %s\n" ${d##*/}
-    done
-    return 0
-}
-
-enter_session() {
-    local session=${1:-default}
-    local workdir=$wsdir/$session
-    local wsconfig=$workdir/workspace.yml
-
-    [ -d $workdir ] || mkdir -p $workdir
-
+    local args=""
+    local path=$PATH
     if [ -e $wsconfig ]; then
         for env in $(yq -r '.environment[]' $wsconfig); do
             env="${env/\$workdir/$workdir}"
             args="-e $env $args"
         done
+        for dir in $(yq -r '.path[]' $wsconfig); do
+            path="$dir:$path"
+        done
     fi
 
-    tmux -u new-session -AD -s $session -c $workdir $args
+    export PATH="$path"
+    exec $real_tmux -u new-session -s $name -c $workdir $args
 }
 
 case $1 in
-    ls|list)
-        do_list
-        ;;
-    help)
-        usage
+    here)
+        tmux_here "$PWD"
         ;;
     *)
-        if [ -n "$1" ]; then
-            enter_session ${1:-default}
-        else
-            usage
-            exit 1
-        fi
+        exec $real_tmux "$@"
         ;;
 esac
-
