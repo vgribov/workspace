@@ -2,6 +2,12 @@
 
 real_tmux=/usr/bin/tmux
 
+_yq() {
+    local scr="$1"
+    local file="$2"
+    yq -r "$scr" "$file" 2>/dev/null
+}
+
 tmux_here() {
     local workdir="$1"
     local name="${workdir##*/}-$$"
@@ -10,11 +16,11 @@ tmux_here() {
     local args=""
     local path=$PATH
     if [ -e $wsconfig ]; then
-        for env in $(yq -r '.environment[]' $wsconfig); do
+        for env in $(_yq '.environment[]' $wsconfig); do
             env="${env/\$workdir/$workdir}"
             args="-e $env $args"
         done
-        for dir in $(yq -r '.path[]' $wsconfig); do
+        for dir in $(_yq '.path[]' $wsconfig); do
             path="$dir:$path"
         done
     fi
